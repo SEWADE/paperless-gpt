@@ -222,6 +222,27 @@ func TestTokenLimitInCorrespondentGeneration(t *testing.T) {
 	assert.LessOrEqual(t, len(tokens), 50, "Final prompt should be within token limit")
 }
 
+func TestGetSuggestedDocumentTypeUsesAliases(t *testing.T) {
+	var err error
+	documentTypeTemplate, err = template.New("document_type").Parse(testTitleTemplate)
+	require.NoError(t, err)
+
+	app := &App{
+		LLM:          &mockLLM{Response: "globus"},
+		matchAliases: map[string]string{"globus": "GLOBUS BAUMARKT"},
+	}
+
+	documentType, err := app.getSuggestedDocumentType(
+		context.Background(),
+		"Some document content",
+		"Test title",
+		[]string{"GLOBUS BAUMARKT"},
+		logrus.NewEntry(logrus.New()),
+	)
+	require.NoError(t, err)
+	assert.Equal(t, "GLOBUS BAUMARKT", documentType)
+}
+
 func TestTokenLimitInTagGeneration(t *testing.T) {
 	testLogger := logrus.WithField("test", "test")
 

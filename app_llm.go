@@ -253,7 +253,7 @@ func (app *App) getSuggestedDocumentType(
 	response := strings.TrimSpace(textsanitize.StripReasoning(completion.Choices[0].Content))
 
 	// Validate that the response is in the available document types list
-	matched, ok := matching.ExactMatch(response, availableDocumentTypes)
+	matched, ok := matching.Resolve(response, availableDocumentTypes, app.matchAliases)
 	if ok {
 		return matched, nil // Return the exact name from available types
 	}

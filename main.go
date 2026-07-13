@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"paperless-gpt/internal/matching"
 	"paperless-gpt/ocr"
 	"paperless-gpt/sanitize"
 	"path/filepath"
@@ -49,7 +50,7 @@ var (
 	openaiAPIKey                  = os.Getenv("OPENAI_API_KEY")
 	manualTag                     = os.Getenv("MANUAL_TAG")
 	autoTag                       = os.Getenv("AUTO_TAG")
-	autoTagComplete               string // read via os.LookupEnv in validateOrDefaultEnvVars
+	autoTagComplete               string                        // read via os.LookupEnv in validateOrDefaultEnvVars
 	manualOcrTag                  = os.Getenv("MANUAL_OCR_TAG") // Not used yet
 	autoOcrTag                    = os.Getenv("AUTO_OCR_TAG")
 	failTag                       = os.Getenv("FAIL_TAG")
@@ -140,6 +141,7 @@ type App struct {
 	pdfOCRTagging      bool              // Whether to add the OCR complete tag to processed PDFs
 	pdfSkipExistingOCR bool              // Whether to skip processing PDFs that already have OCR detected
 	autoTagComplete    string            // Tag to add to documents after auto-processing is complete
+	matchAliases       map[string]string // Aliases for canonical Paperless values
 }
 
 func main() {
@@ -160,6 +162,11 @@ func main() {
 
 	// Load settings from file
 	loadSettings()
+
+	aliases, err := matching.LoadAliases(filepath.Join(configDir, "aliases.json"))
+	if err != nil {
+		log.Fatalf("Failed to load aliases: %v", err)
+	}
 
 	if settings.CustomFieldsEnable && len(settings.CustomFieldsSelectedIDs) == 0 {
 		log.Warn("Custom fields are enabled, but no custom fields are selected in the settings.")
@@ -357,6 +364,7 @@ func main() {
 		pdfOCRTagging:      pdfOCRTagging,
 		pdfSkipExistingOCR: pdfSkipExistingOCR,
 		autoTagComplete:    autoTagComplete,
+		matchAliases:       aliases,
 	}
 
 	if app.isOcrEnabled() {
@@ -1197,7 +1205,6 @@ func createVisionLLM() (llms.Model, error) {
 		return nil, nil
 	}
 }
-
 
 func createCustomHTTPClient() *http.Client {
 	// Create custom transport that adds headers
