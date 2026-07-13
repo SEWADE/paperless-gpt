@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"paperless-gpt/internal/matching"
 	"paperless-gpt/internal/textsanitize"
 	"slices"
 	"strings"
@@ -94,11 +95,11 @@ func (app *App) getSuggestedTags(
 
 	// Get available tokens for content
 	templateData := map[string]interface{}{
-		"Language":       likelyLanguage,
-		"AvailableTags":  availableTags,
-		"OriginalTags":   originalTags,
-		"Title":          suggestedTitle,
-		"CreateNewTags":  createNewTags,
+		"Language":      likelyLanguage,
+		"AvailableTags": availableTags,
+		"OriginalTags":  originalTags,
+		"Title":         suggestedTitle,
+		"CreateNewTags": createNewTags,
 	}
 
 	availableTokens, err := getAvailableTokensForContent(tagTemplate, templateData)
@@ -252,10 +253,9 @@ func (app *App) getSuggestedDocumentType(
 	response := strings.TrimSpace(textsanitize.StripReasoning(completion.Choices[0].Content))
 
 	// Validate that the response is in the available document types list
-	for _, docType := range availableDocumentTypes {
-		if strings.EqualFold(response, docType) {
-			return docType, nil // Return the exact name from available types
-		}
+	matched, ok := matching.ExactMatch(response, availableDocumentTypes)
+	if ok {
+		return matched, nil // Return the exact name from available types
 	}
 
 	// If not found in available types, return empty string
@@ -376,6 +376,7 @@ func (app *App) getSuggestedCreatedDate(ctx context.Context, content string, log
 	result := textsanitize.StripReasoning(completion.Choices[0].Content)
 	return strings.TrimSpace(strings.Trim(result, "\"")), nil
 }
+
 var xmlAttrEscaper = strings.NewReplacer(
 	"&", "&amp;",
 	`"`, "&quot;",
@@ -392,6 +393,7 @@ var xmlTextEscaper = strings.NewReplacer(
 
 func escapeXMLAttr(s string) string { return xmlAttrEscaper.Replace(s) }
 func escapeXMLText(s string) string { return xmlTextEscaper.Replace(s) }
+
 // getSuggestedCustomFields generates suggested custom fields for a document using the LLM
 func (app *App) getSuggestedCustomFields(ctx context.Context, doc Document, selectedFieldIDs []int, logger *logrus.Entry) ([]CustomFieldSuggestion, error) {
 	// Fetch all available custom fields
