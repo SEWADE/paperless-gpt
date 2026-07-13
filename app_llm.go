@@ -617,6 +617,9 @@ func (app *App) generateDocumentSuggestions(ctx context.Context, suggestionReque
 					log.Errorf("Error generating correspondents for document %d: %v", documentID, err)
 					return
 				}
+				if matchedCorrespondent, ok := matching.ExactMatch(suggestedCorrespondent, availableCorrespondentNames); ok {
+					suggestedCorrespondent = matchedCorrespondent
+				}
 			}
 
 			if suggestionRequest.GenerateDocumentTypes {
